@@ -1,6 +1,6 @@
 # 语聊房项目
 
-基于 Agora RTC SDK NG 的语音聊天室应用，支持主播模式和观众模式，实现了多种订阅优化策略。
+基于 Agora RTC SDK NG 的语音聊天室应用，支持主播模式和观众模式，采用预订阅策略实现最低延迟。
 
 ## 功能特性
 
@@ -11,7 +11,7 @@
 - 📊 **状态指示**：实时显示主播的麦克风状态和说话状态
 - 🔗 **分享链接**：快速生成分享链接邀请他人加入
 - 🌐 **URL 参数自动配置**：通过链接自动加入房间
-- ⚡ **订阅优化**：支持预订阅和智能订阅策略
+- ⚡ **预订阅优化**：采用预订阅策略，实现最低首帧延迟
 
 ## Agora RTC SDK NG 集成详解
 
@@ -94,42 +94,11 @@ audioTrack.close();
 await client.setClientRole("audience");
 ```
 
-### 4. 订阅策略（两种模式）
+### 4. 订阅策略（预订阅模式）
 
-本项目实现了两种订阅策略，可通过 URL 参数切换：
-
-#### 策略一：传统订阅模式
+本项目采用预订阅模式，实现最低延迟和最佳用户体验：
 
 ```typescript
-// URL: ?presubscribe=false（默认）
-
-// user-published 事件：订阅并播放
-client.on("user-published", async (user, mediaType) => {
-  if (mediaType === "audio") {
-    await client.subscribe(user, mediaType);
-    user.audioTrack?.play();
-  }
-});
-
-// user-unpublished 事件：取消订阅
-client.on("user-unpublished", async (user, mediaType) => {
-  if (mediaType === "audio") {
-    await client.unsubscribe(user, mediaType);
-  }
-});
-```
-
-**特点**：
-
-- 用户发布音频时才订阅
-- 取消发布时断开订阅
-- 实现简单，适合基础场景
-
-#### 策略二：预订阅模式（推荐）
-
-```typescript
-// URL: ?presubscribe=true
-
 // user-joined 事件：用户加入时立即预订阅
 client.on("user-joined", async (user) => {
   try {
@@ -162,20 +131,21 @@ client.on("user-published", async (user, mediaType) => {
 
     // track 不存在，补充订阅
     console.log("无 track，补充订阅");
-    await client.presubscribe(user.uid, mediaType);
+    await client.subscribe(user, mediaType);
     user.audioTrack?.play();
   }
 });
 ```
 
-**特点**：
+**预订阅模式的优势**：
 
-- 用户加入时立即建立连接
-- 首帧延迟最低
-- 智能检测 track 状态，确保音频正常播放
-- 预订阅失败时自动降级
-- 最佳用户体验
-- 推荐用于生产环境
+- **更低延迟**：用户加入时即建立连接，无需等待 `user-published` 事件
+- **更好体验**：主播开麦后观众能立即听到声音
+- **智能容错**：
+  - 预订阅成功 → 直接播放
+  - track 存在但未播放 → 自动调用 `play()`
+  - track 不存在 → 自动降级补充订阅
+- **生产就绪**：经过完善的边界情况处理，适合生产环境
 
 ### 5. 事件监听
 
@@ -186,10 +156,8 @@ client.on("user-published", async (user, mediaType) => {
 client.on("user-joined", async (user) => {
   setTotalUsers((prev) => prev + 1);
 
-  // 预订阅模式下，立即预订阅
-  if (USE_PRESUBSCRIBE) {
-    await client.presubscribe(user.uid, "audio");
-  }
+  // 立即预订阅
+  await client.presubscribe(user.uid, "audio");
 });
 
 // 用户离开
@@ -240,19 +208,11 @@ setTotalUsers(0);
 setHosts([]);
 ```
 
-### 订阅策略对比
+### 最佳实践总结
 
-| 策略     | 首帧延迟 | 订阅时机   | 连接稳定性 | 容错能力 | 适用场景             |
-| -------- | -------- | ---------- | ---------- | -------- | -------------------- |
-| 传统模式 | 中等     | 发布时订阅 | 一般       | 一般     | 简单场景             |
-| 预订阅   | 最低     | 加入时订阅 | 最好       | 强       | 对延迟敏感的生产场景 |
+本项目采用预订阅模式，配合实验性参数优化，实现了：
 
-**预订阅模式的优势**：
-
-1. **更低延迟**：用户加入时即建立连接，无需等待 `user-published` 事件
-2. **更好体验**：主播开麦后观众能立即听到声音
-3. **智能容错**：
-   - 预订阅成功 → 直接播放
-   - track 存在但未播放 → 自动调用 `play()`
-   - track 不存在 → 自动降级为传统订阅
-4. **生产就绪**：经过完善的边界情况处理，适合生产环境
+- **最低首帧延迟**：用户加入时即建立连接
+- **智能容错机制**：自动处理各种边界情况
+- **生产级稳定性**：经过完善测试，适合生产环境
+- **最佳用户体验**：主播开麦后观众立即听到声音

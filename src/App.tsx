@@ -44,9 +44,6 @@ function App() {
   const [showConfig, setShowConfig] = useState(true);
   const isAutoJoining = useRef(false);
 
-  // 配置开关：从 URL 参数读取，默认为 false（传统模式）
-  const USE_PRESUBSCRIBE = useRef(searchParams.get("presubscribe") !== "false");
-
   // 从 URL 参数读取配置
   useEffect(() => {
     const urlAppId = searchParams.get("appid");
@@ -79,19 +76,17 @@ function App() {
     client.on("user-joined", async (user) => {
       setTotalUsers((prev) => prev + 1);
 
-      // 预订阅方案：用户加入时立即预订阅
-      if (USE_PRESUBSCRIBE.current) {
-        try {
-          await client.presubscribe(user.uid, "audio");
-          console.log(`[预订阅] 预订阅用户 ${user.uid} 的音频`);
-          const audioTrack = user.audioTrack;
-          audioTrack?.play();
-        } catch (error) {
-          console.error(`[预订阅] 预订阅用户 ${user.uid} 失败:`, error);
-        }
+      // 用户加入时立即预订阅
+      try {
+        await client.presubscribe(user.uid, "audio");
+        console.log(`[预订阅] 预订阅用户 ${user.uid} 的音频`);
+        const audioTrack = user.audioTrack;
+        audioTrack?.play();
+      } catch (error) {
+        console.error(`[预订阅] 预订阅用户 ${user.uid} 失败:`, error);
       }
 
-      // 将用户添加到主播列表（假设加入的都是潜在主播）
+      // 将用户添加到主播列表
       setHosts((prev) => {
         if (!prev.find((h) => h.uid === user.uid)) {
           return [...prev, { uid: user.uid, isMuted: true, isSpeaking: false }];
@@ -120,40 +115,25 @@ function App() {
     client.on("user-published", async (user, mediaType) => {
       if (mediaType === "audio") {
         // 预订阅模式：检查是否已有 track 且正在播放
-        if (USE_PRESUBSCRIBE.current) {
-          if (user.audioTrack && user.audioTrack.isPlaying) {
-            console.log(
-              `[预订阅] 用户 ${user.uid} 发布音频，track 已在播放，忽略`,
-            );
-            return;
-          }
-          if (user.audioTrack && !user.audioTrack.isPlaying) {
-            console.log(
-              `[预订阅] 用户 ${user.uid} 发布音频，track 存在但未播放，开始播放`,
-            );
-            user.audioTrack.play();
-            return;
-          }
-          console.log(`[预订阅] 用户 ${user.uid} 发布音频但无 track，补充订阅`);
-          await client.presubscribe(user.uid, mediaType);
-          const audioTrack = user.audioTrack;
-          audioTrack?.play();
-
-          // 添加到主播列表
-          setHosts((prev) => {
-            if (!prev.find((h) => h.uid === user.uid)) {
-              return [
-                ...prev,
-                { uid: user.uid, isMuted: true, isSpeaking: false },
-              ];
-            }
-            return prev;
-          });
+        if (user.audioTrack && user.audioTrack.isPlaying) {
+          console.log(
+            `[预订阅] 用户 ${user.uid} 发布音频，track 已在播放，忽略`,
+          );
           return;
         }
+        if (user.audioTrack && !user.audioTrack.isPlaying) {
+          console.log(
+            `[预订阅] 用户 ${user.uid} 发布音频，track 存在但未播放，开始播放`,
+          );
+          user.audioTrack.play();
+          return;
+        }
+        console.log(`[预订阅] 用户 ${user.uid} 发布音频但无 track，补充订阅`);
+        await client.presubscribe(user.uid, mediaType);
+        const audioTrack = user.audioTrack;
+        audioTrack?.play();
 
-        // 传统模式：订阅并播放
-        // 先添加到主播列表（确保立即显示）
+        // 添加到主播列表
         setHosts((prev) => {
           if (!prev.find((h) => h.uid === user.uid)) {
             return [
@@ -163,25 +143,14 @@ function App() {
           }
           return prev;
         });
-
-        await client.subscribe(user, mediaType);
-        const audioTrack = user.audioTrack;
-        audioTrack?.play();
-
-        console.log(`[传统模式] 订阅并播放用户 ${user.uid} 的音频`);
+        return;
       }
     });
 
-    // 监听用户取消发布
+    // 监听用户取消发布（预订阅模式下不需要取消订阅）
     client.on("user-unpublished", async (user, mediaType) => {
       if (mediaType === "audio") {
-        // 传统模式：取消订阅
-        if (!USE_PRESUBSCRIBE.current) {
-          console.log(
-            `[传统模式] 用户 ${user.uid} 取消发布音频，执行 unsubscribe`,
-          );
-          await client.unsubscribe(user, mediaType);
-        }
+        console.log(`用户 ${user.uid} 取消发布音频`);
       }
 
       // 收到unpublished ,就 mute掉
@@ -363,10 +332,6 @@ function App() {
     if (token.current) {
       params.append("token", token.current);
     }
-    // 添加配置参数（只有使用预订阅时才添加）
-    if (USE_PRESUBSCRIBE.current) {
-      params.append("presubscribe", "true");
-    }
     return `${baseUrl}?${params.toString()}`;
   };
 
@@ -408,11 +373,6 @@ function App() {
               placeholder="请输入频道名称"
               onChange={(e) => (channel.current = e.target.value)}
             />
-            <div className="config-info">
-              <small>
-                订阅模式: {USE_PRESUBSCRIBE.current ? "预订阅" : "传统模式"}
-              </small>
-            </div>
             <button onClick={joinChannel} className="join-btn">
               加入语聊房
             </button>
