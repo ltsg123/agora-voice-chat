@@ -119,6 +119,14 @@ function App() {
           console.log(
             `[预订阅] 用户 ${user.uid} 发布音频，track 已在播放，忽略`,
           );
+
+          setHosts((prev) =>
+            prev.map((h) =>
+              h.uid === user.uid
+                ? { ...h, isMuted: false, isSpeaking: false }
+                : h,
+            ),
+          );
           return;
         }
         if (user.audioTrack && !user.audioTrack.isPlaying) {
@@ -126,6 +134,14 @@ function App() {
             `[预订阅] 用户 ${user.uid} 发布音频，track 存在但未播放，开始播放`,
           );
           user.audioTrack.play();
+
+          setHosts((prev) =>
+            prev.map((h) =>
+              h.uid === user.uid
+                ? { ...h, isMuted: false, isSpeaking: false }
+                : h,
+            ),
+          );
           return;
         }
         console.log(`[预订阅] 用户 ${user.uid} 发布音频但无 track，补充订阅`);
@@ -140,10 +156,13 @@ function App() {
               ...prev,
               { uid: user.uid, isMuted: true, isSpeaking: false },
             ];
+          } else {
+            return [
+              ...prev,
+              { uid: user.uid, isMuted: false, isSpeaking: false },
+            ];
           }
-          return prev;
         });
-        return;
       }
     });
 
