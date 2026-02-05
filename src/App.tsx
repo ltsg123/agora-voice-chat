@@ -73,41 +73,8 @@ function App() {
 
   useEffect(() => {
     // 监听用户加入
-    client.on("user-joined", async (user) => {
+    client.on("user-joined", async () => {
       setTotalUsers((prev) => prev + 1);
-
-      // 用户加入时立即预订阅
-      // try {
-      //   console.error(
-      //     "bf pre",
-      //     client.remoteUsers[0]._audio_added_,
-      //     client.remoteUsers[0]._audio_enabled_,
-      //     client.remoteUsers[0]._audio_muted_,
-      //   );
-      //   await client.presubscribe(user.uid, "audio");
-      //   console.error(
-      //     "after pre",
-      //     client.remoteUsers[0]._audio_added_,
-      //     client.remoteUsers[0]._audio_enabled_,
-      //     client.remoteUsers[0]._audio_muted_,
-      //   );
-      //   console.log(`[预订阅] 预订阅用户 ${user.uid} 的音频`);
-      //   const audioTrack = user.audioTrack;
-      //   audioTrack?.play();
-      // } catch (error) {
-      //   console.error(`[预订阅] 预订阅用户 ${user.uid} 失败:`, error);
-      // }
-
-      // 将用户添加到主播列表
-      // setHosts((prev) => {
-      //   if (!prev.find((h) => h.uid === user.uid)) {
-      //     return [
-      //       ...prev,
-      //       { uid: user.uid, isMuted: false, isSpeaking: false },
-      //     ];
-      //   }
-      //   return prev;
-      // });
     });
 
     // 监听用户离开
