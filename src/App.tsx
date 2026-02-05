@@ -32,7 +32,7 @@ interface HostUser {
 function App() {
   const [searchParams] = useSearchParams();
   const [isHost, setIsHost] = useState(false); // 是否是主播
-  const [isMicMuted, setIsMicMuted] = useState(true); // 麦克风是否静音
+  const [isMicMuted, setIsMicMuted] = useState(false); // 麦克风是否静音
   const [isJoined, setIsJoined] = useState(false);
   const [totalUsers, setTotalUsers] = useState(0);
   const [hosts, setHosts] = useState<HostUser[]>([]); // 所有主播列表
@@ -77,22 +77,37 @@ function App() {
       setTotalUsers((prev) => prev + 1);
 
       // 用户加入时立即预订阅
-      try {
-        await client.presubscribe(user.uid, "audio");
-        console.log(`[预订阅] 预订阅用户 ${user.uid} 的音频`);
-        const audioTrack = user.audioTrack;
-        audioTrack?.play();
-      } catch (error) {
-        console.error(`[预订阅] 预订阅用户 ${user.uid} 失败:`, error);
-      }
+      // try {
+      //   console.error(
+      //     "bf pre",
+      //     client.remoteUsers[0]._audio_added_,
+      //     client.remoteUsers[0]._audio_enabled_,
+      //     client.remoteUsers[0]._audio_muted_,
+      //   );
+      //   await client.presubscribe(user.uid, "audio");
+      //   console.error(
+      //     "after pre",
+      //     client.remoteUsers[0]._audio_added_,
+      //     client.remoteUsers[0]._audio_enabled_,
+      //     client.remoteUsers[0]._audio_muted_,
+      //   );
+      //   console.log(`[预订阅] 预订阅用户 ${user.uid} 的音频`);
+      //   const audioTrack = user.audioTrack;
+      //   audioTrack?.play();
+      // } catch (error) {
+      //   console.error(`[预订阅] 预订阅用户 ${user.uid} 失败:`, error);
+      // }
 
       // 将用户添加到主播列表
-      setHosts((prev) => {
-        if (!prev.find((h) => h.uid === user.uid)) {
-          return [...prev, { uid: user.uid, isMuted: true, isSpeaking: false }];
-        }
-        return prev;
-      });
+      // setHosts((prev) => {
+      //   if (!prev.find((h) => h.uid === user.uid)) {
+      //     return [
+      //       ...prev,
+      //       { uid: user.uid, isMuted: false, isSpeaking: false },
+      //     ];
+      //   }
+      //   return prev;
+      // });
     });
 
     // 监听用户离开
@@ -151,17 +166,10 @@ function App() {
 
         // 添加到主播列表
         setHosts((prev) => {
-          if (!prev.find((h) => h.uid === user.uid)) {
-            return [
-              ...prev,
-              { uid: user.uid, isMuted: true, isSpeaking: false },
-            ];
-          } else {
             return [
               ...prev,
               { uid: user.uid, isMuted: false, isSpeaking: false },
             ];
-          }
         });
       }
     });
@@ -178,39 +186,6 @@ function App() {
           h.uid === user.uid ? { ...h, isMuted: true, isSpeaking: false } : h,
         ),
       );
-    });
-
-    // 监听音量变化
-    client.enableAudioVolumeIndicator();
-    client.on("volume-indicator", (volumes) => {
-      volumes.forEach((volume) => {
-        // 音量大于 10 表示有声音（开麦且在说话）
-        if (volume.level > 10) {
-          setHosts((prev) =>
-            prev.map((h) =>
-              h.uid === volume.uid
-                ? { ...h, isMuted: false, isSpeaking: true }
-                : h,
-            ),
-          );
-          setTimeout(() => {
-            setHosts((prev) =>
-              prev.map((h) =>
-                h.uid === volume.uid ? { ...h, isSpeaking: false } : h,
-              ),
-            );
-          }, 500);
-        } else if (volume.level > 0) {
-          // 音量很小，表示开麦但没说话
-          setHosts((prev) =>
-            prev.map((h) =>
-              h.uid === volume.uid
-                ? { ...h, isMuted: false, isSpeaking: false }
-                : h,
-            ),
-          );
-        }
-      });
     });
 
     return () => {
@@ -281,17 +256,17 @@ function App() {
       // 创建麦克风音频轨道
       audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
       // 默认静音
-      await audioTrack.setMuted(true);
+      await audioTrack.setMuted(false);
       // 发布音频流
       await client.publish(audioTrack);
 
       setIsHost(true);
-      setIsMicMuted(true);
+      setIsMicMuted(false);
 
       // 将自己添加到主播列表
       setHosts((prev) => [
         ...prev,
-        { uid: client.uid!, isMuted: true, isSpeaking: false },
+        { uid: client.uid!, isMuted: false, isSpeaking: false },
       ]);
 
       console.log("成为主播成功");
