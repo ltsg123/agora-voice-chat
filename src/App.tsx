@@ -14,6 +14,8 @@ import AgoraRTC, {
   enableStringuidCompatible: true,
 });
 
+AgoraRTC.enableLogUpload();
+
 const client: IAgoraRTCClient = AgoraRTC.createClient({
   mode: "live",
   codec: "vp8",
