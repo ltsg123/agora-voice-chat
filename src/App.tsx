@@ -15,6 +15,8 @@ import AgoraRTC, {
 });
 
 AgoraRTC.enableLogUpload();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(AgoraRTC as any).setParameter("AUDIO_VOLUME_INDICATION_INTERVAL", 1000);
 
 const client: IAgoraRTCClient = AgoraRTC.createClient({
   mode: "live",
@@ -77,6 +79,17 @@ function App() {
     // 监听用户加入
     client.on("user-joined", async () => {
       setTotalUsers((prev) => prev + 1);
+
+      // console.error("user-joined");
+      // setHosts((prev) => {
+      //   const host = prev.find((h) => h.uid === user.uid);
+      //   if (!host) {
+      //     return [...prev, { uid: user.uid, isMuted: true, isSpeaking: false }];
+      //   }
+      //   return prev.map((h) =>
+      //     h.uid === user.uid ? { ...h, isMuted: true, isSpeaking: false } : h,
+      //   );
+      // });
     });
 
     // 监听用户离开
@@ -97,6 +110,7 @@ function App() {
 
     // 监听用户发布音频
     client.on("user-published", async (user, mediaType) => {
+      console.error("user-published----");
       if (mediaType === "audio") {
         // 预订阅模式：检查是否已有 track 且正在播放
         if (user.audioTrack && user.audioTrack.isPlaying) {
@@ -135,16 +149,18 @@ function App() {
 
         // 添加到主播列表
         setHosts((prev) => {
-            return [
-              ...prev,
-              { uid: user.uid, isMuted: false, isSpeaking: false },
-            ];
+          return [
+            ...prev,
+            { uid: user.uid, isMuted: false, isSpeaking: false },
+          ];
         });
       }
     });
 
     // 监听用户取消发布（预订阅模式下不需要取消订阅）
     client.on("user-unpublished", async (user, mediaType) => {
+      console.error("user-unpublished----");
+
       if (mediaType === "audio") {
         console.log(`用户 ${user.uid} 取消发布音频`);
       }
@@ -155,6 +171,13 @@ function App() {
           h.uid === user.uid ? { ...h, isMuted: true, isSpeaking: false } : h,
         ),
       );
+    });
+
+    // 监听音量变化
+    client.enableAudioVolumeIndicator();
+    client.on("volume-indicator", (volumes) => {
+      //
+      console.error(volumes);
     });
 
     return () => {
